@@ -1,0 +1,135 @@
+MySQL Exercise 
+---------------
+
+1)Rank display
+--------------
+select name, votes, row_number() over (order by votes) as rank from votes
+
+
+2)Capitalize function
+---------------------
+CREATE FUNCTION dbo.initcap(
+    @inputList VARCHAR(200) 
+) RETURNS varchar(200)
+BEGIN
+
+DECLARE @sItem VARCHAR(200)
+DECLARE @delimiter VARCHAR(10) = ' '
+DECLARE @result varchar(200) = ''
+
+WHILE CHARINDEX(@delimiter,@inputList,0) <> 0
+ BEGIN
+ SELECT
+  @sItem=RTRIM(LTRIM(SUBSTRING(@inputList,1,CHARINDEX(@delimiter,@inputList,0)-1))),
+  @inputList=RTRIM(LTRIM(SUBSTRING(@inputList,CHARINDEX(@delimiter,@inputList,0)+LEN(@delimiter),LEN(@inputList))))
+ 
+ IF LEN(@sItem) > 0
+	SELECT @result = @result + ' ' + UPPER(LEFT(@sItem,1))+LOWER(SUBSTRING(@sItem,2,LEN(@sItem)))
+ END
+ 
+IF LEN(@inputList) > 0
+ SELECT @result = @result + ' ' + UPPER(LEFT(@inputList,1))+LOWER(SUBSTRING(@inputList,2,LEN(@inputList)))
+ 
+RETURN @result 
+END
+GO
+
+SELECT [master].[dbo].[initcap] ('UNited kINGDOM')
+GO
+
+
+3) Stored procedure to split a column using delimiter 
+--------------------------------------------------------
+--DDL for table creation and insertion
+CREATE TABLE dbo.sometbl ( ID INT, NAME VARCHAR(50) );
+
+INSERT INTO dbo.sometbl VALUES (1, 'Smith')
+INSERT INTO dbo.sometbl VALUES (2, 'Julio|Jones|Falcons')
+INSERT INTO dbo.sometbl VALUES  (3, 'White|Snow')
+INSERT INTO dbo.sometbl VALUES  (4, 'Paint|It|Red')
+INSERT INTO dbo.sometbl VALUES  (5, 'Green|Lantern')
+INSERT INTO dbo.sometbl VALUES  (6, 'Brown|bag');
+
+create procedure dbo.splitColumn
+AS
+BEGIN
+
+CREATE TABLE #temp_split_table(
+  idkey int,
+  split_value varchar(200)
+ )
+ 
+ DECLARE c_rows CURSOR FOR
+	select ID , NAME from dbo.sometbl
+	FOR READ ONLY
+	DECLARE @pKey int
+	DECLARE @value varchar(200)
+	OPEN c_rows
+		FETCH c_rows INTO @pkey, @value
+	IF (@@FETCH_STATUS = 2)
+    BEGIN
+      print 'No records'
+      CLOSE c_rows
+      DEALLOCATE c_rows
+      RETURN
+    END
+    
+  WHILE @@FETCH_STATUS = 0
+  BEGIN
+
+    DECLARE @sItem VARCHAR(200)
+	DECLARE @delimiter VARCHAR(10) = '|'
+	DECLARE @result varchar(200) = ''
+			
+	WHILE CHARINDEX(@delimiter,@value,0) <> 0
+	 BEGIN
+		 SELECT
+		  @sItem=RTRIM(LTRIM(SUBSTRING(@value,1,CHARINDEX(@delimiter,@value,0)-1))),
+		  @value=RTRIM(LTRIM(SUBSTRING(@value,CHARINDEX(@delimiter,@value,0)+LEN(@delimiter),LEN(@value))))
+		 
+		 IF LEN(@sItem) > 0
+			INSERT INTO #temp_split_table values (@pkey, @sItem);
+		 END
+		 
+
+		 IF CHARINDEX(@delimiter,@value,0) <> -1
+		 INSERT INTO #temp_split_table values (@pkey, @value);
+	
+  FETCH c_rows INTO @pkey, @value
+  END 
+  
+  CLOSE c_rows
+  DEALLOCATE c_rows
+  select * from #temp_split_table
+END
+GO
+
+
+--To execute above pl/sql
+DECLARE	@return_value int
+EXEC	@return_value = [dbo].[splitColumn]		
+GO
+
+4) Bug Tracker
+---------------
+--DDL for bug tracker
+
+CREATE TABLE dbo.bugs(id int, open_date datetime, close_date datetime, severity varchar(50))
+
+insert into dbo.bugs values(14,'Aug 1 2012','Jan 1 2013','Medium')
+insert into dbo.bugs values(333,'Aug 12 2016','Jan 11 2017','High')
+insert into dbo.bugs values(45,'Jun 22 2011','Jul 1 2015','Severe')
+insert into dbo.bugs values(12,'Feb 18 2012','Jan 10 2013','Medium')
+insert into dbo.bugs values(112,'Mar 18 2012','Sep 10 2012','Low')
+insert into dbo.bugs values(478,'Jun 23 2012','Jul 10 2012','Medium')
+
+--For the given date 'July 11 2012' this sql gives number of bugs open at that time
+
+DECLARE @bugdate datetime = 'Jul 11 2012'
+select COUNT(*) as 'open bugs' from dbo.bugs b1
+where b1.open_date between b1.open_date and @bugdate and b1.close_date >= @bugdate
+
+
+
+select COUNT(*) as 'open bugs' from dbo.bugs b1
+where b1.open_date between b1.open_date and 'Jul 11 2012' and b1.close_date >= 'Jul 11 2012'
